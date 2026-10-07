@@ -1,0 +1,16 @@
+check,rows,passed
+geolocation: all values and nulls,19010,True
+category_translation: all values and nulls,74,True
+customers: all values and nulls,99441,True
+products: all values and nulls,32951,True
+sellers: all values and nulls,3095,True
+orders: all values and nulls,99441,True
+order_items: all values and nulls,112650,True
+order_payments: all values and nulls,103886,True
+order_reviews: all values and nulls,98673,True
+order_metrics: every order,99441,True
+overview: SQL vs Pandas,1,True
+monthly_sales: SQL vs Pandas,25,True
+category_sales: SQL vs Pandas,74,True
+seller_performance: SQL vs Pandas,3095,True
+customer_cohorts: SQL vs Pandas,327,True

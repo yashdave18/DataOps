@@ -1,0 +1,128 @@
+# Local learning stack. Optional services use profiles; ports bind only to loopback.
+x-app: &app
+  image: olist-app:local
+  build:
+    context: ..
+    dockerfile: docker/Dockerfile
+    target: app
+  environment: &app-env
+    PGHOST: postgres
+    PGPORT: "5432"
+    PGDATABASE: ${PGDATABASE:-olist}
+    PGUSER: ${PGUSER:-olist}
+    PGPASSWORD: ${PGPASSWORD:?Run scripts/configure_local.py first}
+    OLIST_DATA_DIR: /opt/olist/data
+    KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+    KAFKA_TOPIC: olist.orders.v1
+  volumes:
+    - olist_data:/opt/olist/data
+    - ../data/raw:/opt/olist/data/raw:ro
+
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: ${PGDATABASE:-olist}
+      POSTGRES_USER: ${PGUSER:-olist}
+      POSTGRES_PASSWORD: ${PGPASSWORD:?Set PGPASSWORD in your environment or .env}
+    ports:
+      - "127.0.0.1:${PGPORT:-5432}:5432"
+    volumes:
+      - olist_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  pipeline:
+    <<: *app
+    profiles: [batch]
+    command: [python, -m, src.pipeline.runner, --with-database]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  dashboard:
+    <<: *app
+    profiles: [dashboard]
+    command: [python, -m, streamlit, run, dashboards/app.py, --server.address, 0.0.0.0, --browser.gatherUsageStats, "false"]
+    ports:
+      - "127.0.0.1:8501:8501"
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8501/_stcore/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  spark:
+    <<: *app
+    image: olist-spark:local
+    profiles: [spark]
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      target: spark
+    command: [python, -m, spark.transformations]
+
+  kafka:
+    image: apache/kafka:4.1.2
+    profiles: [streaming]
+    hostname: kafka
+    ports:
+      - "127.0.0.1:9092:9092"
+    environment:
+      KAFKA_NODE_ID: "1"
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: INTERNAL://:29092,HOST://:9092,CONTROLLER://:29093
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:29092,HOST://127.0.0.1:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,HOST:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:29093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: "1"
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: "0"
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    healthcheck:
+      test: [CMD-SHELL, "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server kafka:29092 >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+
+  kafka-init:
+    image: apache/kafka:4.1.2
+    profiles: [streaming]
+    entrypoint: [/opt/kafka/bin/kafka-topics.sh]
+    command: [--bootstrap-server, kafka:29092, --create, --if-not-exists, --topic, olist.orders.v1, --partitions, "3", --replication-factor, "1"]
+    depends_on:
+      kafka:
+        condition: service_healthy
+
+  producer:
+    <<: *app
+    profiles: [streaming]
+    command: [python, kafka/producers/order_producer.py, --limit, "1000"]
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+
+  consumer:
+    <<: *app
+    profiles: [streaming]
+    command: [python, kafka/consumers/order_consumer.py]
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+
+volumes:
+  olist_postgres:
+  olist_data:
+  kafka_data:

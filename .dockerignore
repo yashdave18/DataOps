@@ -1,0 +1,10 @@
+.git
+.venv
+.local
+.env
+data
+logs
+notebooks
+**/__pycache__
+**/*.pyc
+.streamlit

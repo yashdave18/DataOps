@@ -1,0 +1,2 @@
+order_count,customer_count,item_revenue,freight,payments,average_order_value,known_payment_orders,average_review_score,reviewed_orders,late_delivery_rate,known_delivery_outcomes,repeat_customer_rate
+96478,93358,13221498.11,2198275.6399999997,15422461.77,159.8563571628471,96477,4.155908256114867,95832,0.06773090079817559,96470,0.03000278497825575

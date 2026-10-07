@@ -45,6 +45,10 @@ def check_unique_values(df:pd.DataFrame, table_name:str, columns:list[str]) -> p
     percents=repeats.mean() * 100
 
     rows=[]
+    null_count = int(df[columns].isna().any(axis=1).sum())
+    if null_count:
+        rows.append(_finding(table_name, 'null_key', ','.join(columns), null_count,
+                             len(df), 'error', f'{null_count} rows have null key components'))
     if counts>0:
         rows.append({
             "table":table_name,
@@ -59,6 +63,9 @@ def check_unique_values(df:pd.DataFrame, table_name:str, columns:list[str]) -> p
     return pd.DataFrame(rows, columns=cols)
 
 def check_data_type(df: pd.DataFrame, table_name: str, column: str,expected_type) -> pd.DataFrame:
+    if column not in df:
+        return pd.DataFrame([_finding(table_name, 'missing_column', column, len(df),
+            len(df), 'error', f'Required column {column} is absent')], columns=cols)
     schema = pa.DataFrameSchema({
         column: pa.Column(expected_type, nullable=True)
     })

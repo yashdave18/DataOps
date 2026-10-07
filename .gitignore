@@ -1,2 +1,15 @@
 data/raw/*
 !data/raw/.gitkeep
+
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+.env
+.local/
+.streamlit/secrets.toml
+data/runs/
+data/processed/CURRENT.json
+logs/*
+!logs/.gitkeep
+artifacts/
+spark-warehouse/

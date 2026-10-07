@@ -1,0 +1,10 @@
+check,actual,expected,passed
+orders,99441,99441,True
+items,112650,112650,True
+customers,96096,96096,True
+products,32951,32951,True
+sellers,3095,3095,True
+item_value,13591643.70,13591643.70,True
+freight,2251909.54,2251909.54,True
+payments,16008872.12,16008872.12,True
+order_item_value,13591643.70,13591643.70,True

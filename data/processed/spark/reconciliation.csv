@@ -1,0 +1,3 @@
+check,rows,passed
+order values and customer windows,99441,True
+delivered monthly values and running totals,23,True

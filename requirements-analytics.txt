@@ -1,0 +1,4 @@
+# Install after requirements.txt in the same virtual environment.
+psycopg[binary]==3.3.6
+streamlit==1.65.0
+plotly==6.9.0

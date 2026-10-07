@@ -1,0 +1,4 @@
+delivery_outcome,order_count,reviewed_orders,average_review_score,commented_reviews,known_comment_indicators
+late,6534,6381,2.270490518727472,3835,6381
+on_time,89936,89443,4.290386055923885,36761,89443
+unknown,8,8,4.5,5,8

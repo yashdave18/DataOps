@@ -1,0 +1,21 @@
+check,actual,expected,passed
+orders: row count,99441,99441,True
+orders: full key population,True,True,True
+customers: row count,96096,96096,True
+customers: full key population,True,True,True
+products: row count,32951,32951,True
+products: full key population,True,True,True
+orders: item value,13591643.7,13591643.7,True
+orders: freight,2251909.54,2251909.54,True
+orders: payments,16008872.120000001,16008872.120000001,True
+customers: spend,16008872.120000001,16008872.120000001,True
+products: revenue,13591643.700000001,13591643.7,True
+products: freight,2251909.54,2251909.54,True
+orders: item count,112650,112650,True
+orders: payment count,103886,103886,True
+orders: review count,98673,98673,True
+customers: order count,99441,99441,True
+customers: item count,112650,112650,True
+customers: reviewed orders,98673,98673,True
+products: units sold,112650,112650,True
+products: product/order pairs,102425,102425,True

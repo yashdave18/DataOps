@@ -1,0 +1,101 @@
+# Use alongside docker-compose.yml. Metadata storage is separate from Olist data.
+x-airflow: &airflow
+  image: olist-airflow:local
+  build:
+    context: ..
+    dockerfile: docker/airflow.Dockerfile
+  environment: &airflow-env
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__CORE__AUTH_MANAGER: airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
+    AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:${AIRFLOW_DB_PASSWORD:?Run configure_local.py}@airflow-db/airflow
+    AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY:?Run configure_local.py}
+    AIRFLOW__API_AUTH__JWT_SECRET: ${AIRFLOW_JWT_SECRET:?Run configure_local.py}
+    AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://airflow-apiserver:8080/execution/
+    AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: "true"
+    PGHOST: postgres
+    PGPORT: "5432"
+    PGDATABASE: ${PGDATABASE:-olist}
+    PGUSER: ${PGUSER:-olist}
+    PGPASSWORD: ${PGPASSWORD:?Run configure_local.py}
+    OLIST_DATA_DIR: /opt/olist/data
+    OLIST_WITH_DATABASE: "true"
+    OLIST_SCHEDULE: ${OLIST_SCHEDULE:-}
+  volumes:
+    - olist_data:/opt/olist/data
+    - ../data/raw:/opt/olist/data/raw:ro
+    - airflow_logs:/opt/airflow/logs
+  depends_on: &airflow-dependencies
+    airflow-db:
+      condition: service_healthy
+    postgres:
+      condition: service_healthy
+
+services:
+  airflow-db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: airflow
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: ${AIRFLOW_DB_PASSWORD:?Run configure_local.py}
+    volumes:
+      - airflow_metadata:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD, pg_isready, -U, airflow, -d, airflow]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  airflow-init:
+    <<: *airflow
+    command: version
+    environment:
+      <<: *airflow-env
+      _AIRFLOW_DB_MIGRATE: "true"
+      _AIRFLOW_WWW_USER_CREATE: "true"
+      _AIRFLOW_WWW_USER_USERNAME: ${AIRFLOW_ADMIN_USER:-admin}
+      _AIRFLOW_WWW_USER_PASSWORD: ${AIRFLOW_ADMIN_PASSWORD:?Run configure_local.py}
+
+  airflow-apiserver:
+    <<: *airflow
+    command: api-server
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      <<: *airflow-dependencies
+      airflow-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: [CMD, curl, --fail, http://localhost:8080/api/v2/monitor/health]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  airflow-scheduler:
+    <<: *airflow
+    command: scheduler
+    depends_on:
+      airflow-apiserver:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD-SHELL, 'airflow jobs check --job-type SchedulerJob --hostname "$${HOSTNAME}"']
+      interval: 15s
+      timeout: 10s
+      retries: 5
+
+  airflow-dag-processor:
+    <<: *airflow
+    command: dag-processor
+    depends_on:
+      airflow-apiserver:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD-SHELL, 'airflow jobs check --job-type DagProcessorJob --hostname "$${HOSTNAME}"']
+      interval: 15s
+      timeout: 10s
+      retries: 5
+
+volumes:
+  airflow_metadata:
+  airflow_logs:

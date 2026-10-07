@@ -1,0 +1,7 @@
+# Portable core for Linux containers; notebook/Windows packages remain separate.
+numpy==2.5.3
+pandas==3.0.6
+pyarrow==25.0.1
+pandera==0.33.1
+psycopg[binary]==3.3.6
+PyYAML==6.0.3
